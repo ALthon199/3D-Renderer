@@ -1,0 +1,34 @@
+# --- Executables and Binaries ---
+# We want to keep the folder structure, but not the files inside
+bin/*
+# Exceptions: keep the folder itself or specific assets if you have them
+!.gitkeep
+
+# --- MSVC Compiler / Linker Junk ---
+*.obj
+*.pdb
+*.ilk
+*.exe
+*.idb
+
+# --- SDL / Library Junk ---
+# Don't upload the actual DLLs if you want people to provide their own
+# Though for small learners' repos, some people omit this
+*.dll
+
+# --- IDE Specifics ---
+# If you use VS Code or Visual Studio
+.vscode/
+.vs/
+out/
+build/
+
+# --- OS Generated ---
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Ignore SDL libraries and headers
+lib/
+include/SDL2/
+SDL2.dll
