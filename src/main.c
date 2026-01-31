@@ -27,6 +27,7 @@ int main(int argc, char* argv[]) {
 
     
     
+    uint32_t white = 0xFFFFFFFF;
     uint32_t color = 0xFFFF0000;
     
 
@@ -35,7 +36,8 @@ int main(int argc, char* argv[]) {
     SDL_GetMouseState(&window_mouse.mouseX, &window_mouse.mouseY);
     SDL_GetMouseState(&old_mouseX, &old_mouseY);
     
-
+  
+ 
     SDL_Event e;
     bool running = true;
     while (running) {
@@ -60,6 +62,12 @@ int main(int argc, char* argv[]) {
             if (e.type == SDL_MOUSEBUTTONUP){
                 window_mouse.pressed = false;
             }
+            
+            //Clears screen if 'C' is pressed
+            if (e.type == SDL_KEYDOWN && e.key.keysym.scancode == 6){
+                clear_screen(pixels, white);
+            }
+            
 
         }
         
@@ -68,6 +76,7 @@ int main(int argc, char* argv[]) {
             draw_line(pixels, old_mouseX, old_mouseY, window_mouse.mouseX, window_mouse.mouseY, 0xFFFF0000);
         }
         
+        draw_triangle(pixels, 100, 100, 600, 100, 300, 500, 0xFFFF0000);
         
         SDL_UpdateTexture(texture, NULL, pixels, WIDTH * 4);
         SDL_RenderClear(renderer);
