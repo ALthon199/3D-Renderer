@@ -31,10 +31,15 @@ int main(int argc, char* argv[]) {
     uint32_t color = 0xFFFF0000;
     
 
-    int old_mouseX = 0;
-    int old_mouseY = 0;
-    SDL_GetMouseState(&window_mouse.mouseX, &window_mouse.mouseY);
-    SDL_GetMouseState(&old_mouseX, &old_mouseY);
+    float old_mouseX = 0;
+    float old_mouseY = 0;
+    int tmpX = 0;
+    int tmpY = 0;
+    SDL_GetMouseState(&tmpX, &tmpY);
+    window_mouse.mouseX = (float)tmpX;
+    window_mouse.mouseY = (float)tmpY;
+    old_mouseX = window_mouse.mouseX;
+    old_mouseY = window_mouse.mouseY;
     
   
  
@@ -50,10 +55,8 @@ int main(int argc, char* argv[]) {
             }
 
             if (e.type == SDL_MOUSEMOTION){
-                
-                window_mouse.mouseX = e.motion.x;
-                window_mouse.mouseY = e.motion.y;
-                
+                window_mouse.mouseX = (float)e.motion.x;
+                window_mouse.mouseY = (float)e.motion.y;
             }
 
             if (e.type == SDL_MOUSEBUTTONDOWN){
@@ -67,6 +70,26 @@ int main(int argc, char* argv[]) {
             if (e.type == SDL_KEYDOWN && e.key.keysym.scancode == 6){
                 clear_screen(pixels, white);
             }
+
+            if (e.type == SDL_KEYDOWN && e.key.keysym.scancode == 7){
+                for (int i = 0; i < 1000; i++){
+                    float x0 = (float)(rand() % WIDTH);
+                    float y0 = (float)(rand() % HEIGHT);
+                    float x1 = (float)(rand() % WIDTH);
+                    float y1 = (float)(rand() % HEIGHT);
+                    float x2 = (float)(rand() % WIDTH);
+                    float y2 = (float)(rand() % HEIGHT);
+                    uint32_t c0 = rand() % 0xFFFFFF;
+                    uint32_t c1 = rand() % 0xFFFFFF;
+                    uint32_t c2 = rand() % 0xFFFFFF;
+                    draw_triangle(pixels, x0, y0, x1, y1, x2, y2, c0, c1, c2);
+                }
+            }
+            if (e.type == SDL_KEYDOWN && e.key.keysym.scancode == 8){
+                draw_triangle(pixels, window_mouse.mouseX, window_mouse.mouseY, 200.0f, 300.0f, 400.0f, 150.0f, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF);
+            }
+
+
             
 
         }
@@ -76,7 +99,7 @@ int main(int argc, char* argv[]) {
             draw_line(pixels, old_mouseX, old_mouseY, window_mouse.mouseX, window_mouse.mouseY, 0xFFFF0000);
         }
         
-        draw_triangle(pixels, 100, 100, 600, 100, 300, 500, 0xFFFF0000);
+        
         
         SDL_UpdateTexture(texture, NULL, pixels, WIDTH * 4);
         SDL_RenderClear(renderer);
