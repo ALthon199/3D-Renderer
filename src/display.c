@@ -3,12 +3,15 @@
 #include <stdlib.h>
 #include "display.h"
 #include "renderer.h"
+#include "vector_math.h"
 
 Display* init_window(void) {
     Display* display = (Display*)malloc(sizeof(Display));
     
     SDL_Init(SDL_INIT_VIDEO);
-    
+
+    SDL_SetRelativeMouseMode(SDL_TRUE);
+   
     display->window = SDL_CreateWindow("3D Renderer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
     display->renderer = SDL_CreateRenderer(display->window, -1, SDL_RENDERER_ACCELERATED);
     display->texture = SDL_CreateTexture(display->renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
@@ -40,17 +43,23 @@ uint32_t* get_pixels(Display* display) {
     return display->pixels;
 }
 
-void process_events(Display* display, bool* running, Mouse* mouse) {
+void process_events(Display* display, bool* running, Mouse* mouse, Camera* camera, Keyboard* keyboard) {
     SDL_Event e;
+    
+    
     while (SDL_PollEvent(&e)) {
+
         if (e.type == SDL_QUIT) {
             *running = false;
         }
 
+        
         if (e.type == SDL_MOUSEMOTION) {
             
             mouse->mouseX = (float)e.motion.x;
             mouse->mouseY = (float)e.motion.y;
+            camera -> yaw += 0.001f*(float)e.motion.xrel;
+            camera -> pitch -= 0.001f*(float)e.motion.yrel;
         }
 
         if (e.type == SDL_MOUSEBUTTONDOWN) {
@@ -61,39 +70,50 @@ void process_events(Display* display, bool* running, Mouse* mouse) {
             mouse->pressed = false;
         }
         
-        // Clear screen if 'C' is pressed
-        if (e.type == SDL_KEYDOWN && e.key.keysym.scancode == 6) {
-            clear_screen(display);
-        }
-        
-        // Draw random triangles if 'D' is pressed
-        if (e.type == SDL_KEYDOWN && e.key.keysym.scancode == 7) {
-            for (int i = 0; i < 1000; i++) {
-                Vertex v0 = {rand() % WIDTH, rand() % HEIGHT, (float) rand() / RAND_MAX, 0xFF0000FF};
-                Vertex v1 = {rand() % WIDTH, rand() % HEIGHT, (float) rand() / RAND_MAX, 0xFF00FF00};
-                Vertex v2 = {rand() % WIDTH, rand() % HEIGHT, (float) rand() / RAND_MAX, 0xFF00FFFF};
-                Triangle tri = {v0, v1, v2};
-                draw_triangle(display, tri);
-            }
-        }
-        
-        // Draw single triangle if 'E' is pressed
-        if (e.type == SDL_KEYDOWN && e.key.keysym.scancode == 8) {
-            // 2. Define the FAR triangle
-            Vertex v0 = { 100, 100, 0.1f, 0xFFFF0000 };
-            Vertex v1 = { 400, 100, 0.9f, 0xFFFF0000 };
-            Vertex v2 = { 250, 400, 0.9f, 0xFFFF0000 };
-            Triangle far_tri = { v0, v1, v2 };
 
-            // 3. Define the NEAR triangle (offset slightly so they overlap)
-            Vertex v3 = { 150, 150, 0.5f, 0xFF0000FF };
-            Vertex v4 = { 450, 150, 0.5f, 0xFF0000FF };
-            Vertex v5 = { 300, 450, 0.5f, 0xFF0000FF };
-            Triangle near_tri = { v3, v4, v5 };
-            draw_triangle(display, near_tri);
-            draw_triangle(display, far_tri);
-        }
+        
     }
+        
+    // Clear screen if 'C' is pressed
+    if (keyboard->keyboard_state[6]) { // 'C' key scancode is 6
+        clear_screen(display);
+    }
+    Vector3 forward_vec = forward(camera);
+    Vector3 right_vec = vec_cross(forward_vec, (Vector3){0,1.0f,0});
+    
+    
+    if (keyboard->keyboard_state[26]) { // 'W' key
+        camera->position.x += forward_vec.x * 0.04f;
+        
+        camera->position.z += forward_vec.z * 0.04f;
+    }
+    if (keyboard->keyboard_state[22]) { // 'S' key
+        camera->position.x -= forward_vec.x * 0.04f;
+        
+        camera->position.z -= forward_vec.z * 0.04f;
+    }
+    
+    if (keyboard->keyboard_state[4]) { // 'A' key
+        camera->position.x += right_vec.x * 0.04f;
+        camera->position.y += right_vec.y * 0.04f;
+        camera->position.z += right_vec.z * 0.04f;
+    }
+    
+    if (keyboard->keyboard_state[7]) { // 'D' key
+    
+        camera->position.x -= right_vec.x * 0.04f;
+        camera->position.y -= right_vec.y * 0.04f;
+        camera->position.z -= right_vec.z * 0.04f;
+    }
+    
+    if (keyboard->keyboard_state[44]) { // Space key
+        camera->position.y += 0.04f;
+    }
+
+    if (keyboard->keyboard_state[225]) { // Left Shift key
+        camera->position.y -= 0.04f;
+    }
+     
 }
 
 void cleanup_window(Display* display) {

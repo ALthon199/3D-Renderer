@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "display.h"
 #include "renderer.h"
+#include "obj_loader.h"
 
 int main(int argc, char* argv[]) {
     // Initialize display
@@ -11,24 +12,32 @@ int main(int argc, char* argv[]) {
     
     // State
     Mouse mouse = {0};
+    Camera camera = {{0, 0, 0}, 0, 0};
+    Keyboard keyboard;
+    keyboard.keyboard_state = SDL_GetKeyboardState(NULL);
+    
+    Mesh teapot;
+
+
+    int opened = load_obj("../assets/nefertiti.obj", &teapot);
     float old_mouseX = 0;
     float old_mouseY = 0;
     bool running = true;
+    
 
     Mesh cube_mesh;
     // 8 Vertices for a unit cube
     // AI created colors for each vertex for testing
     Vertex cube_vertices[] = {
-    {-1, -1, -1, 0xFFFF0000}, // 0: Bottom-Left-Back (Red)
-    { 1, -1, -1,  0xFFFF0000}, // 1: Bottom-Right-Back (Green)
-    { 1,  1, -1,  0xFFFFFF00}, // 2: Top-Right-Back (Blue)
-    {-1,  1, -1,  0xFFFFFF00}, // 3: Top-Left-Back (White)
-    {-1, -1,  1,  0xFFFF0000}, // 4: Bottom-Left-Front (Yellow)
-    { 1, -1,  1, 0xFFFF0000}, // 5: Bottom-Right-Front (Magenta)
-    { 1,  1,  1, 0xFFFFFF00}, // 6: Top-Right-Front (Cyan)
-    {-1,  1,  1, 0xFFFFFF00}  // 7: Top-Left-Front (Black)
+    {.position = {-1,-1, -1}, .color = 0xFFFF0000}, // 0: Bottom-Left-Back (Red)
+    {.position = { 1, -1, -1}, .color = 0xFFFF0000}, // 1: Bottom-Right-Back (Green)
+    {.position = { 1,  1, -1}, .color = 0xFFFFFF00}, // 2: Top-Right-Back (Blue)
+    {.position = {-1,  1, -1}, .color = 0xFFFFFF00}, // 3: Top-Left-Back (White)
+    {.position = {-1, -1,  1}, .color = 0xFFFF0000}, // 4: Bottom-Left-Front (Yellow)
+    {.position = { 1, -1,  1}, .color = 0xFFFF0000}, // 5: Bottom-Right-Front (Magenta)
+    {.position = { 1,  1,  1}, .color = 0xFFFFFF00}, // 6: Top-Right-Front (Cyan)
+    {.position = {-1,  1,  1}, .color = 0xFFFFFF00}  // 7: Top-Left-Front (Black)
     };
-
     int cube_indices[] = {
     // Front face (Z+)
     4, 6, 5,  4, 7, 6,
@@ -42,9 +51,10 @@ int main(int argc, char* argv[]) {
     3, 2, 6,  3, 6, 7,
     // Bottom face (Y-)
     0, 4, 5,  0, 5, 1
-};  
+    };  
     
     cube_mesh.Vertices = cube_vertices;
+    cube_mesh.vertex_count = sizeof(cube_vertices)/sizeof(Vertex);
     cube_mesh.indices = cube_indices;
     cube_mesh.index_count = sizeof(cube_indices) / sizeof(int);
     cube_mesh.rotation_angle = 0.0f;
@@ -53,22 +63,23 @@ int main(int argc, char* argv[]) {
         
         old_mouseX = mouse.mouseX;
         old_mouseY = mouse.mouseY;
-        process_events(display, &running, &mouse);
+        process_events(display, &running, &mouse, &camera, &keyboard);
         
+ 
        
-       
-        cube_mesh.rotation_angle += 0.02f;
+        cube_mesh.rotation_angle += 0.1f;
         
-        draw_mesh(display, &cube_mesh); 
-            
+        draw_mesh(display, &teapot, &camera); 
         
-        
-        
+      
+     
      
         present_frame(display);
         
         SDL_Delay(10);
         clear_screen(display);
+
+        
     }
     
     // Cleanup
