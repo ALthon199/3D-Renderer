@@ -2,7 +2,7 @@
 #define OBJ_LOADER_H
 
 #include "geometry.h"
-
+#include "vector_math.h"
 int load_obj(const char* filename, Mesh* mesh);
 
 #endif // OBJ_LOADER_H

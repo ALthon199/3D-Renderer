@@ -28,10 +28,27 @@ Display* init_window(void) {
 void clear_screen(Display* display) {
     memset(display->pixels, 0, WIDTH * HEIGHT * sizeof(uint32_t));
     for (int i = 0; i < WIDTH * HEIGHT; i++) {
-        display->z_buffer[i] = 1000.0f; // Reset z-buffer
+        display->z_buffer[i] = 10000.0f; // Reset z-buffer
     }
 }
+void clear_screen_with_gradient(Display* display) {
+    for (int y = 0; y < HEIGHT; y++) {
+        // Calculate a value from 0.0 (top) to 1.0 (bottom)
+        float t = (float)y / (float)HEIGHT;
+        
+        // Interpolate between a dark top and a slightly lighter bottom
+        uint8_t r = (uint8_t)(30 * (1.0f - t) + 60 * t);
+        uint8_t g = (uint8_t)(30 * (1.0f - t) + 60 * t);
+        uint8_t b = (uint8_t)(35 * (1.0f - t) + 65 * t);
 
+        uint32_t row_color = (0xFF << 24) | (r << 16) | (g << 8) | b;
+        
+        for (int x = 0; x < WIDTH; x++) {
+            display->pixels[y * WIDTH + x] = row_color;
+            display->z_buffer[y * WIDTH + x] = 10000; // Reset Z-buffer
+        }
+    }
+}
 void present_frame(Display* display) {
     SDL_UpdateTexture(display->texture, NULL, display->pixels, WIDTH * sizeof(uint32_t));
     SDL_RenderClear(display->renderer);

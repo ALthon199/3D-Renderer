@@ -36,6 +36,7 @@ typedef struct {
 
 Display* init_window(void);
 void clear_screen(Display* display);
+void clear_screen_with_gradient(Display* display);
 void present_frame(Display* display);
 void process_events(Display* display, bool* running, Mouse* mouse, Camera* camera, Keyboard* keyboard);
 void cleanup_window(Display* display);

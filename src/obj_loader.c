@@ -43,7 +43,7 @@ int load_obj(const char* filename, Mesh* mesh) {
     int i = 0;
     int j = 0;
     if (obj != NULL){
-        
+        // Simple OBJ parser that only supports vertex positions and triangular faces
         while (fgets(line, sizeof(line), obj)){
 
             if (line[0] == 'v' && line[1] == ' '){
@@ -63,8 +63,10 @@ int load_obj(const char* filename, Mesh* mesh) {
         }
     }
     fclose(obj);
-    float minx, maxx, miny, maxy, minz, maxz;
 
+
+    // Normalize vertices to fit in unit cube centered at origin
+    float minx, maxx, miny, maxy, minz, maxz;
     for (int k = 0; k < total_vertex; k++) {
         Vertex v = vertices[k];
         if (k == 0) {
@@ -90,7 +92,6 @@ int load_obj(const char* filename, Mesh* mesh) {
     if (height > max_dimension) max_dimension = height;
     if (depth > max_dimension) max_dimension = depth;
 
-
     for (int k = 0; k < total_vertex; k++) {
         vertices[k].position.x = (vertices[k].position.x - minx - width / 2) / max_dimension;
         vertices[k].position.y = (vertices[k].position.y - miny - height / 2) / max_dimension;
@@ -98,15 +99,44 @@ int load_obj(const char* filename, Mesh* mesh) {
     }
 
 
+    Vector3* normalized_vertices = (Vector3*)calloc( total_vertex, sizeof(Vector3));
+
+    // Sum areas of adjacent triangles for each vertex normal
+    for (int i = 0; i < indices; i+=3) {
+        int i0 = vertex_indices[i];
+        int i1 = vertex_indices[i+1];
+        int i2 = vertex_indices[i+2];
+
+        Vector3 v0 = vertices[i0].position;
+        Vector3 v1 = vertices[i1].position;
+        Vector3 v2 = vertices[i2].position;
+
+        Vector3 area = vec_cross(vec_sub(v0, v1), vec_sub(v0, v2));
+
+        normalized_vertices[i0] = vec_add(normalized_vertices[i0], area);
+        normalized_vertices[i1] = vec_add(normalized_vertices[i1], area);
+        normalized_vertices[i2] = vec_add(normalized_vertices[i2], area);
+    }
+
+    // Normalize the vertex normals
+    for (int i = 0; i < total_vertex; i++){
+        normalized_vertices[i] = vec_normalize(normalized_vertices[i]);
+    }
 
 
-
+    // Populate mesh struct
     mesh -> Vertices = vertices;
+    mesh -> Vertex_normals = normalized_vertices;
     mesh -> vertex_count = total_vertex;
     mesh -> indices = vertex_indices;
     mesh -> index_count = indices;
+
+    // Allocate memory for transformed vertices and normals that will be used during rendering
+    mesh -> shaded_colors = (uint32_t*)malloc(sizeof(uint32_t) * total_vertex);
+    mesh -> transformed_normals = (Vector3*)malloc(sizeof(Vector3) * total_vertex);
     mesh -> camera_vertices = (Vector3*)malloc(sizeof(Vector3) * total_vertex);
     mesh -> projected_vertices = (Vertex*)malloc(sizeof(Vertex) * total_vertex);
+
     printf("Normalized Bounds: %f to %f\n", vertices[0].position.x, vertices[total_vertex-1].position.x);
     printf("%d %d \n", total_vertex, indices);
     printf("Loading OBJ file: %s\n", filename);

@@ -22,10 +22,13 @@ typedef struct{
 
 typedef struct {
     Vertex* Vertices;
+    Vector3* Vertex_normals;
     int vertex_count;
     int* indices;
     int index_count;
 
+    uint32_t* shaded_colors;
+    Vector3* transformed_normals;
     Vector3* camera_vertices;
     Vertex* projected_vertices;
     float rotation_angle;

@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
     Mesh teapot;
 
 
-    int opened = load_obj("../assets/nefertiti.obj", &teapot);
+    int opened = load_obj("..\\assets\\xyzrgb_dragon.obj", &teapot);
     float old_mouseX = 0;
     float old_mouseY = 0;
     bool running = true;
@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
         
  
        
-        cube_mesh.rotation_angle += 0.1f;
+        teapot.rotation_angle += 0.1f;
         
         draw_mesh(display, &teapot, &camera); 
         
@@ -77,13 +77,13 @@ int main(int argc, char* argv[]) {
         present_frame(display);
         
         SDL_Delay(10);
-        clear_screen(display);
+        clear_screen_with_gradient(display);
 
         
     }
     
     // Cleanup
     cleanup_window(display);
-    
+    free_mesh(&teapot);
     return 0;
 }
