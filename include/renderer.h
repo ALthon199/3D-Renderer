@@ -12,6 +12,7 @@ uint32_t get_shaded_color(uint32_t base_color, float intensity);
 void put_pixel(Display* display, Vertex v);
 void draw_line(Display* display, Vertex v0, Vertex v1);
 void draw_triangle(Display* display, Triangle tri);
+void draw_triangle_bounded(Display* display, Triangle tri, int minX, int minY, int maxX, int maxY);
 void draw_mesh(Display* display, Mesh* mesh, Camera* camera);
 
 #endif

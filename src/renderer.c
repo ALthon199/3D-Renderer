@@ -1,6 +1,7 @@
 #include "display.h"
 #include "renderer.h"
 #include "vector_math.h"
+#include "geometry.h"
 #include <math.h>
 #include <stdio.h>
 #include <omp.h>
@@ -109,9 +110,9 @@ void draw_line(Display* display, Vertex v0, Vertex v1) {
         draw_line_high(display, v0, v1, v0.color);
     }
 }
-
 void draw_triangle(Display* display, Triangle tri) {
     Vertex v0 = tri.v0; Vertex v1 = tri.v1; Vertex v2 = tri.v2;
+
 
     // 1. Bounding Box
     int minX = (int)fmaxf(0, floorf(fminf(v0.position.x, fminf(v1.position.x, v2.position.x))));
@@ -177,13 +178,91 @@ void draw_triangle(Display* display, Triangle tri) {
         z_row += dz_dy; r_row += dr_dy; g_row += dg_dy; b_row += db_dy;
     }
 }
+
+void draw_triangle_bounded(Display* display, Triangle tri, int minX, int minY, int maxX, int maxY) {
+    
+    Vertex v0 = tri.v0; Vertex v1 = tri.v1; Vertex v2 = tri.v2;
+    
+    float area = edge_function(v0.position.x, v0.position.y, v1.position.x, v1.position.y, v2.position.x, v2.position.y);
+    if (fabs(area) < 1e-6f) return;
+    float inv_area = 1.0f / area;
+
+    float w0_dx = v1.position.y - v0.position.y;
+    float w1_dx = v2.position.y - v1.position.y;
+    float w2_dx = v0.position.y - v2.position.y;
+    float w0_dy = v0.position.x - v1.position.x;
+    float w1_dy = v1.position.x - v2.position.x;
+    float w2_dy = v2.position.x - v0.position.x;
+
+
+
+    float dz_dx = tri.gradient.dz_dx;
+    float dz_dy = tri.gradient.dz_dy;
+
+    int original_r0 = (v0.color >> 16) & 0xFF, original_g0 = (v0.color >> 8) & 0xFF, original_b0 = v0.color & 0xFF;
+    int original_r1 = (v1.color >> 16) & 0xFF, original_g1 = (v1.color >> 8) & 0xFF, original_b1 = v1.color & 0xFF;
+    int original_r2 = (v2.color >> 16) & 0xFF, original_g2 = (v2.color >> 8) & 0xFF, original_b2 = v2.color & 0xFF;
+
+    float dr_dx = tri.gradient.dr_dx;
+    float dr_dy = tri.gradient.dr_dy;
+    float dg_dx = tri.gradient.dg_dx;
+    float dg_dy = tri.gradient.dg_dy;
+    float db_dx = tri.gradient.db_dx;
+    float db_dy = tri.gradient.db_dy;
+
+    int r0 = (int)((original_r0 << FIXED_POINT_SHIFT) + dr_dx * (minX + 0.5f - v0.position.x) + dr_dy * (minY + 0.5f - v0.position.y));
+    int g0 = (int)((original_g0 << FIXED_POINT_SHIFT) + dg_dx * (minX + 0.5f - v0.position.x) + dg_dy * (minY + 0.5f - v0.position.y));
+    int b0 = (int)((original_b0 << FIXED_POINT_SHIFT) + db_dx * (minX + 0.5f - v0.position.x) + db_dy * (minY + 0.5f - v0.position.y));
+    // 3. Initial values at the start of the bounding box (minX + 0.5, minY + 0.5)
+    float w0_row = edge_function(minX + 0.5f, minY + 0.5f, v0.position.x, v0.position.y, v1.position.x, v1.position.y);
+    float w1_row = edge_function(minX + 0.5f, minY + 0.5f, v1.position.x, v1.position.y, v2.position.x, v2.position.y);
+    float w2_row = edge_function(minX + 0.5f, minY + 0.5f, v2.position.x, v2.position.y, v0.position.x, v0.position.y);
+
+    
+    float z_row = dz_dx * (minX + 0.5f - v0.position.x) + dz_dy * (minY + 0.5f - v0.position.y) + v0.position.z;
+    
+    int r_row = r0;
+    int g_row = g0;
+    int b_row = b0;
+    for (int j = minY; j <= maxY; j++) {
+        float w0 = w0_row; float w1 = w1_row; float w2 = w2_row;
+        float z = z_row; int r = r_row; int g = g_row; int b = b_row;
+
+        for (int i = minX; i <= maxX; i++) {
+            // Check if inside (inclusive of both CW and CCW for safety)
+            if ((w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0)) {
+                int index = j * WIDTH + i;
+                
+                if (z < display->z_buffer[index]) {
+                    display->z_buffer[index] = z;
+                    uint32_t final_r = (uint32_t)(r >> FIXED_POINT_SHIFT) & 0xFF;
+                    uint32_t final_g = (uint32_t)(g >> FIXED_POINT_SHIFT) & 0xFF;
+                    uint32_t final_b = (uint32_t)(b >> FIXED_POINT_SHIFT) & 0xFF;
+                    display->pixels[index] = (0xFF << 24) | (final_r << 16) | (final_g << 8) | final_b;
+                }
+            }
+            // INCREMENT EVERYTHING
+            w0 += w0_dx; w1 += w1_dx; w2 += w2_dx;
+            z += dz_dx; r += dr_dx; g += dg_dx; b += db_dx;
+        }
+        w0_row += w0_dy; w1_row += w1_dy; w2_row += w2_dy;
+        z_row += dz_dy; r_row += dr_dy; g_row += dg_dy; b_row += db_dy;
+    }
+
+}
+
+
 void draw_mesh(Display* display, Mesh* mesh, Camera* camera) {
-
-
+    
+    static Tile tiles[HEIGHT/16][WIDTH/16]; // 16x16 pixel tiles for tile-based rasterization optimization
+    memset(tiles, 0, sizeof(tiles));
     float fov_factor = 600.0f;
 
     // Transform all vertices from world space to camera space, then project to screen space
-    for (int i = 0; i < mesh->vertex_count; i += 1) {
+  
+    int i;
+    #pragma omp parallel for private(i) schedule(dynamic)
+    for (i = 0; i < mesh->vertex_count; i += 1) {
         Vertex v0 = mesh->Vertices[i];
         Vector3 normal = mesh->Vertex_normals[i];
         // Rotate about y axis
@@ -218,11 +297,11 @@ void draw_mesh(Display* display, Mesh* mesh, Camera* camera) {
         float light_intensity = fmaxf(0.1f, vec_dot(mesh->transformed_normals[i], light_dir));
         uint32_t base_color = v0.color;
         uint32_t shaded_color = get_shaded_color(base_color, light_intensity);
-
+        
         mesh->shaded_colors[i] = shaded_color;
     }
    
-    int i;
+   
     // Backface culling and triangle rasterization
     for (i = 0; i < mesh->index_count; i+=3){
 
@@ -254,13 +333,72 @@ void draw_mesh(Display* display, Mesh* mesh, Camera* camera) {
         v1.color = mesh->shaded_colors[mesh->indices[i+1]];
         v2.color = mesh->shaded_colors[mesh->indices[i+2]];
 
-        Vertex vertices[3] = {v0, v1, v2};
-        Triangle tri = {vertices[0], vertices[1], vertices[2]};
-        draw_triangle(display, tri);
-    }
+        
 
-    
+        float w0_dx = v1.position.y - v0.position.y;
+        float w1_dx = v2.position.y - v1.position.y;
+        float w2_dx = v0.position.y - v2.position.y;
+        float w0_dy = v0.position.x - v1.position.x;
+        float w1_dy = v1.position.x - v2.position.x;
+        float w2_dy = v2.position.x - v0.position.x;
+        float area = edge_function(v0.position.x, v0.position.y, v1.position.x, v1.position.y, v2.position.x, v2.position.y);
+        float inv_area = 1.0f / area;
+
+
+        float dz_dx, dz_dy;
+        dz_dx = (w0_dx * v0.position.z + w1_dx * v1.position.z + w2_dx * v2.position.z) * inv_area;
+        dz_dy = (w0_dy * v0.position.z + w1_dy * v1.position.z + w2_dy * v2.position.z) * inv_area;
+
+        uint32_t r0 = (v0.color >> 16) & 0xFF, g0 = (v0.color >> 8) & 0xFF, b0 = v0.color & 0xFF;
+        uint32_t r1 = (v1.color >> 16) & 0xFF, g1 = (v1.color >> 8) & 0xFF, b1 = v1.color & 0xFF;
+        uint32_t r2 = (v2.color >> 16) & 0xFF, g2 = (v2.color >> 8) & 0xFF, b2 = v2.color & 0xFF;
+
+        int dr_dx = (int)((w0_dx * r0 + w1_dx * r1 + w2_dx * r2) * inv_area * (1 << FIXED_POINT_SHIFT));
+        int dr_dy = (int)((w0_dy * r0 + w1_dy * r1 + w2_dy * r2) * inv_area * (1 << FIXED_POINT_SHIFT));
+        int dg_dx = (int)((w0_dx * g0 + w1_dx * g1 + w2_dx * g2) * inv_area * (1 << FIXED_POINT_SHIFT));
+        int dg_dy = (int)((w0_dy * g0 + w1_dy * g1 + w2_dy * g2) * inv_area * (1 << FIXED_POINT_SHIFT));
+        int db_dx = (int)((w0_dx * b0 + w1_dx * b1 + w2_dx * b2) * inv_area * (1 << FIXED_POINT_SHIFT));
+        int db_dy = (int)((w0_dy * b0 + w1_dy * b1 + w2_dy * b2) * inv_area * (1 << FIXED_POINT_SHIFT));
+        Gradient gradient = {dz_dx, dz_dy, dr_dx, dr_dy, dg_dx, dg_dy, db_dx, db_dy};
+        Vertex vertices[3] = {v0, v1, v2};
+        Triangle tri = {vertices[0], vertices[1], vertices[2], gradient};
+        
+        int minX = (int)fmaxf(0, floorf(fminf(v0.position.x, fminf(v1.position.x, v2.position.x))));
+        int minY = (int)fmaxf(0, floorf(fminf(v0.position.y, fminf(v1.position.y, v2.position.y))));
+        int maxX = (int)fminf(WIDTH - 1, ceilf(fmaxf(v0.position.x, fmaxf(v1.position.x, v2.position.x))));
+        int maxY = (int)fminf(HEIGHT - 1, ceilf(fmaxf(v0.position.y, fmaxf(v1.position.y, v2.position.y))));
+
+        
+        for (int ty = minY/16; ty <= maxY/16; ty++) {
+            for (int tx = minX/16; tx <= maxX/16; tx++) {
+                
+                if (tiles[ty][tx].tri_count < MAX_TRIANGLES) {
+                    
+                    tiles[ty][tx].tri[tiles[ty][tx].tri_count++] = tri;
+                }
+            }
+        }
+    }   
+    int ty, tx, t;
+    #pragma omp parallel for private(ty, tx, t) schedule(dynamic)
+    for (ty = 0; ty < HEIGHT/16; ty++) {
+        for (tx = 0; tx < WIDTH/16; tx++) {
+            for (t = 0; t < tiles[ty][tx].tri_count; t++) {
+                int minX = fminf(fminf(tiles[ty][tx].tri[t].v0.position.x, fminf(tiles[ty][tx].tri[t].v1.position.x, tiles[ty][tx].tri[t].v2.position.x)), tx*16);
+                int minY = fminf(fminf(tiles[ty][tx].tri[t].v0.position.y, fminf(tiles[ty][tx].tri[t].v1.position.y, tiles[ty][tx].tri[t].v2.position.y)), ty*16);
+                int maxX = fmaxf(fmaxf(tiles[ty][tx].tri[t].v0.position.x, fmaxf(tiles[ty][tx].tri[t].v1.position.x, tiles[ty][tx].tri[t].v2.position.x)), tx*16+15);
+                int maxY = fmaxf(fmaxf(tiles[ty][tx].tri[t].v0.position.y, fmaxf(tiles[ty][tx].tri[t].v1.position.y, tiles[ty][tx].tri[t].v2.position.y)), ty*16+15);
+                int renderminX = fmaxf(tx*16, minX);
+                int renderminY = fmaxf(ty*16, minY);
+                int rendermaxX = fminf(tx*16+15, maxX);
+                int rendermaxY = fminf(ty*16+15, maxY);
+                draw_triangle_bounded(display, tiles[ty][tx].tri[t], renderminX, renderminY, rendermaxX, rendermaxY);
+            }
+        }
+    }
 }
+
+
 
 void free_mesh(Mesh* mesh) {
     free(mesh->Vertices);
@@ -270,4 +408,5 @@ void free_mesh(Mesh* mesh) {
     free(mesh->projected_vertices);
     free(mesh->transformed_normals);
     free(mesh->shaded_colors);
+
 }
