@@ -2,6 +2,7 @@
 #include <math.h>
 #include "geometry.h"
 #include "display.h"
+#include "renderer.h"
 Vector3 forward(Camera* camera) {
     float x = sinf(camera->yaw) * cosf(camera->pitch);
     float y = sinf(camera->pitch);
@@ -57,10 +58,18 @@ Vertex camera_rotate(Vertex v, Camera* camera) {
 
 Vertex camera_project(Vertex v) {
     float fov_factor = 600.0f;
-    float x = (v.position.x / v.position.z) * fov_factor + (WIDTH / 2);
-    float y = -(v.position.y / v.position.z) * fov_factor + (HEIGHT / 2);
-    return (Vertex){(Vector3){x, y, v.position.z}, v.color};
+    float z = v.position.z;
+    if (z < 0.1f) z = 0.1f; // Clamp to avoid division-by-zero and extreme perspective when very near
+    float x = (v.position.x / z) * fov_factor + (WIDTH / 2);
+    float y = -(v.position.y / z) * fov_factor + (HEIGHT / 2);
+    return (Vertex){(Vector3){x, y, z}, v.color};
 }
+
+
 float vec_dot(Vector3 a, Vector3 b){
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
+
+
+
+

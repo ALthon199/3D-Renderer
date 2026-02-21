@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 
-#define MAX_TRIANGLES 2000
+
 #define FIXED_POINT_SHIFT 16
 typedef struct {
     float x, y, z;
@@ -25,22 +25,40 @@ typedef struct{
 
 typedef struct{
     Vertex v0, v1, v2;
+    // Precomputed gradients for interpolation
+    Gradient gradient; 
 
-    Gradient gradient; // Precomputed gradients for interpolation
+    // Bounding box for the triangle
+    float minX, maxX, minY, maxY;
+
+    // Precomputed values for edge function derivatives
+    float w0_dx, w0_dy;
+    float w1_dx, w1_dy;
+    float w2_dx, w2_dy;
+
+    // Precomputed row start, color start, and depth start for rasterization
+    float w0_start; float w1_start; float w2_start;
+    float z_start; int r_start; int g_start; int b_start;
+
+    float inv_area;
 } Triangle;
 
 
 typedef struct{
-    Triangle tri[MAX_TRIANGLES]; // 16x16 pixel tiles for tile-based rasterization optimization
+    int offset; // 16x16 pixel tiles for tile-based rasterization optimization
     int tri_count;
 } Tile;
 
 typedef struct {
     Vertex* Vertices;
     Vector3* Vertex_normals;
+    Triangle* rendered_triangles;
     int vertex_count;
     int* indices;
     int index_count;
+
+
+    
 
     uint32_t* shaded_colors;
     Vector3* transformed_normals;

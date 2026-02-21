@@ -26,5 +26,4 @@ Vertex camera_project(Vertex v);
 
 
 
-
 #endif

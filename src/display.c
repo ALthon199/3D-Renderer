@@ -15,14 +15,71 @@ Display* init_window(void) {
     display->window = SDL_CreateWindow("3D Renderer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
     display->renderer = SDL_CreateRenderer(display->window, -1, SDL_RENDERER_ACCELERATED);
     display->texture = SDL_CreateTexture(display->renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
-    
     display->pixels = (uint32_t*)malloc(sizeof(uint32_t) * WIDTH * HEIGHT);
+    display->tiles = (Tile*)malloc(sizeof(Tile) * ((WIDTH / TILE_SIZE) * (HEIGHT / TILE_SIZE))); // For tile-based rasterization optimization
+    display->global_tiles = (int*)malloc(sizeof(int) * MAX_TRIANGLES); // For tile-based rasterization optimization
+    display->fill_tracker = (int*)malloc(sizeof(int) * ((WIDTH / TILE_SIZE) * (HEIGHT / TILE_SIZE))); // For tile-based rasterization optimization
+    display->max_triangles = MAX_TRIANGLES; // For tile-based rasterization optimization
+
+
+
     memset(display->pixels, 0, sizeof(uint32_t) * WIDTH * HEIGHT);
     display->z_buffer = (float*)malloc(sizeof(float) * WIDTH * HEIGHT);
     for (int i = 0; i < WIDTH * HEIGHT; i++) {
-        display->z_buffer[i] = 1000.0f; // Initialize z-buffer to farthest depth
+        display->z_buffer[i] = 10000.0f; // Initialize z-buffer to farthest depth
     }
     return display;
+}
+
+/*
+ * create_grid_floor
+ * Generates a planar grid mesh centered at origin in XZ, at vertical level `y_level`.
+ * - Allocates `mesh->Vertices`, `mesh->Vertex_normals`, `mesh->camera_vertices`,
+ *   `mesh->projected_vertices`, `mesh->transformed_normals`, `mesh->shaded_colors`, and `mesh->indices`.
+ * - Sets a simple checkerboard color pattern.
+ * NOTE: Implementation created with assistance from an AI tool.
+ */
+void create_grid_floor(Mesh* mesh, int segments, float size, float y_level) {
+    int cols = segments + 1;
+    int vertex_count = cols * cols;
+    mesh->Vertices = (Vertex*)malloc(sizeof(Vertex) * vertex_count);
+    mesh->Vertex_normals = (Vector3*)malloc(sizeof(Vector3) * vertex_count);
+    mesh->camera_vertices = (Vector3*)malloc(sizeof(Vector3) * vertex_count);
+    mesh->projected_vertices = (Vertex*)malloc(sizeof(Vertex) * vertex_count);
+    mesh->transformed_normals = (Vector3*)malloc(sizeof(Vector3) * vertex_count);
+    mesh->shaded_colors = (uint32_t*)malloc(sizeof(uint32_t) * vertex_count);
+    mesh->vertex_count = vertex_count;
+
+    float half = size * 0.5f;
+    float step = size / (float)segments;
+    for (int z = 0; z <= segments; z++) {
+        for (int x = 0; x <= segments; x++) {
+            int idx = z * cols + x;
+            mesh->Vertices[idx].position.x = -half + x * step;
+            mesh->Vertices[idx].position.y = y_level;
+            mesh->Vertices[idx].position.z = -half + z * step;
+            if (((x + z) & 1) == 0) mesh->Vertices[idx].color = 0xFFCCCCCC; else mesh->Vertices[idx].color = 0xFF777777;
+            mesh->Vertex_normals[idx] = (Vector3){0.0f, 1.0f, 0.0f};
+        }
+    }
+
+    int index_count = segments * segments * 6;
+    int* indices = (int*)malloc(sizeof(int) * index_count);
+    int k = 0;
+    for (int z = 0; z < segments; z++) {
+        for (int x = 0; x < segments; x++) {
+            int a = z * cols + x;
+            int b = a + 1;
+            int c = a + cols;
+            int d = c + 1;
+            // Winding chosen so normal points up when viewed from above
+            indices[k++] = a; indices[k++] = c; indices[k++] = b;
+            indices[k++] = b; indices[k++] = c; indices[k++] = d;
+        }
+    }
+    mesh->indices = indices;
+    mesh->index_count = index_count;
+    mesh->rotation_angle = 0.0f;
 }
 
 void clear_screen(Display* display) {
@@ -101,7 +158,6 @@ void process_events(Display* display, bool* running, Mouse* mouse, Camera* camer
     
     if (keyboard->keyboard_state[26]) { // 'W' key
         camera->position.x += forward_vec.x * 0.04f;
-        
         camera->position.z += forward_vec.z * 0.04f;
     }
     if (keyboard->keyboard_state[22]) { // 'S' key
@@ -129,6 +185,10 @@ void process_events(Display* display, bool* running, Mouse* mouse, Camera* camer
 
     if (keyboard->keyboard_state[225]) { // Left Shift key
         camera->position.y -= 0.04f;
+    }
+
+    if (camera-> position.y < 0.0f) {
+        camera->position.y = 0.0f; // Prevent going below the floor
     }
      
 }
