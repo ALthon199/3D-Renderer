@@ -5,7 +5,7 @@
 #include "display.h"
 #include "renderer.h"
 #include "obj_loader.h"
-
+#include <SDL_ttf.h>
 
 
 int main(int argc, char* argv[]) {
@@ -21,7 +21,9 @@ int main(int argc, char* argv[]) {
     Mesh teapot;
 
 
-    int opened = load_obj("..\\assets\\dog.obj", &teapot);
+    int opened = load_obj("..\\assets\\bunny.obj", &teapot, 0xFFFFFFFF);
+    char render_info[64] = "Rendering bunny.obj";
+    char key_info[64] = "Press 1-4 to load different models";
     float old_mouseX = 0;
     float old_mouseY = 0;
     bool running = true;
@@ -43,18 +45,28 @@ int main(int argc, char* argv[]) {
 
 
     Mesh floor_mesh;
-    create_grid_floor(&floor_mesh, 10, 100.0f, -1.5f);
+    create_grid_floor(&floor_mesh, 10, 100.0f, -3.0f);
     
+
+
+    SDL_Color white = {255, 255, 255, 255};
+    
+
+   
+   
 
 
 
     double start_time = SDL_GetTicks();
+    double last_time = start_time;
     
     while (running) {
+        
         clear_screen_with_gradient(display);
+
         old_mouseX = mouse.mouseX;
         old_mouseY = mouse.mouseY;
-        process_events(display, &running, &mouse, &camera, &keyboard);
+        process_events(display, &running, &mouse, &camera, &keyboard, &teapot, render_info);
 
     
     
@@ -85,12 +97,21 @@ int main(int argc, char* argv[]) {
             draw_triangle(display, &tri);
         }
         
-        double current_time = SDL_GetTicks();
-        double elapsed_time = current_time - start_time;
+
         
-        start_time = current_time;
-     
+        
+        double current_time = SDL_GetTicks();
+        double elapsed_time = current_time - last_time;
+        last_time = current_time;
+        
+        int frames_per_second = (int)(1000.0 / elapsed_time);
+        
+
+        update_text(display, (int*)&current_time, (int*)&last_time, &frames_per_second, teapot.index_count / 3, "Debug: WASD to move, mouse to look", render_info);
+        
+          
         present_frame(display);
+        
         
         SDL_Delay(10);
         
@@ -99,6 +120,7 @@ int main(int argc, char* argv[]) {
     }
     
     // Cleanup
+   
     cleanup_window(display);
     free_mesh(&teapot);
     free_mesh(&floor_mesh);

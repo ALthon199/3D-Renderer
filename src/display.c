@@ -1,4 +1,5 @@
 #include <SDL.h>
+#include <SDL_ttf.h>
 #include <string.h>
 #include <stdlib.h>
 #include "display.h"
@@ -8,12 +9,27 @@
 Display* init_window(void) {
     Display* display = (Display*)malloc(sizeof(Display));
     
-    SDL_Init(SDL_INIT_VIDEO);
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+        printf("SDL_Init failed: %s\n", SDL_GetError());
+        free(display);
+        return NULL;
+    }
+
+    if (TTF_Init() == -1) {
+        printf("TTF_Init failed: %s\n", TTF_GetError());
+        SDL_Quit();
+        free(display);
+        return NULL;
+    }
+
 
     SDL_SetRelativeMouseMode(SDL_TRUE);
    
     display->window = SDL_CreateWindow("3D Renderer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
     display->renderer = SDL_CreateRenderer(display->window, -1, SDL_RENDERER_ACCELERATED);
+    display->text_renderer = TTF_OpenFont("..\\assets\\font\\JetBrainsMono-Regular.ttf", 24);
+    display->rendered_text[0] = NULL; // Initialize rendered text slots to NULL
+
     display->texture = SDL_CreateTexture(display->renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WIDTH, HEIGHT);
     display->pixels = (uint32_t*)malloc(sizeof(uint32_t) * WIDTH * HEIGHT);
     display->tiles = (Tile*)malloc(sizeof(Tile) * ((WIDTH / TILE_SIZE) * (HEIGHT / TILE_SIZE))); // For tile-based rasterization optimization
@@ -109,7 +125,26 @@ void clear_screen_with_gradient(Display* display) {
 void present_frame(Display* display) {
     SDL_UpdateTexture(display->texture, NULL, display->pixels, WIDTH * sizeof(uint32_t));
     SDL_RenderClear(display->renderer);
+    
     SDL_RenderCopy(display->renderer, display->texture, NULL, NULL);
+
+    for (int i = 0; i < 7; i++) {
+     
+        if (display->rendered_text[i] != NULL) {
+           
+            SDL_Rect destination_rect;
+            destination_rect.w = 0; destination_rect.h = 0 ; // Let SDL_QueryTexture fill these in
+            SDL_QueryTexture(display->rendered_text[i], NULL, NULL, &destination_rect.w, &destination_rect.h);
+            destination_rect.y = i * destination_rect.h; // Stack text vertically
+            destination_rect.x = 0; // Left align
+        
+            SDL_RenderCopy(display->renderer, display->rendered_text[i], NULL, &destination_rect);
+            
+        }
+    }
+
+    
+    
     SDL_RenderPresent(display->renderer);
 }
 
@@ -117,7 +152,7 @@ uint32_t* get_pixels(Display* display) {
     return display->pixels;
 }
 
-void process_events(Display* display, bool* running, Mouse* mouse, Camera* camera, Keyboard* keyboard) {
+void process_events(Display* display, bool* running, Mouse* mouse, Camera* camera, Keyboard* keyboard, Mesh* mesh, char* debug_info) {
     SDL_Event e;
     
     
@@ -190,12 +225,39 @@ void process_events(Display* display, bool* running, Mouse* mouse, Camera* camer
     if (camera-> position.y < 0.0f) {
         camera->position.y = 0.0f; // Prevent going below the floor
     }
+    
+    if (keyboard->keyboard_state[SDL_SCANCODE_1]) { // 1 key
+        load_obj("..\\assets\\dog.obj", mesh, 0xFFA500FF); // Brown color for dog
+        snprintf(debug_info, 64, "Rendering dog.obj");
+    }
+
+    if (keyboard->keyboard_state[SDL_SCANCODE_2]) { // 2 key
+        load_obj("..\\assets\\bunny.obj", mesh, 0xFFFFFFFF); // White color for bunny
+        snprintf(debug_info, 64, "Rendering bunny.obj");
+    }
+
+    if (keyboard->keyboard_state[SDL_SCANCODE_3]) { // 3 key
+        load_obj("..\\assets\\teapot.obj", mesh, 0xFF0000FF); // Blue color for teapot
+        snprintf(debug_info, 64, "Rendering teapot.obj");
+    }
+
+    if (keyboard->keyboard_state[SDL_SCANCODE_4]) { // 4 key
+        load_obj("..\\assets\\xyzrgb_dragon.obj", mesh, 0xFF00FF00); // Green color for dragon
+        snprintf(debug_info, 64, "Rendering xyzrgb_dragon.obj");
+    }
+
+
      
 }
 
 void cleanup_window(Display* display) {
     free(display->pixels);
     free(display->z_buffer);
+    free (display->tiles);
+    free (display->global_tiles);
+    free (display->fill_tracker);
+
+    TTF_CloseFont(display->text_renderer);
     SDL_DestroyTexture(display->texture);
     SDL_DestroyRenderer(display->renderer);
     SDL_DestroyWindow(display->window);
@@ -204,3 +266,81 @@ void cleanup_window(Display* display) {
 }
 
 
+void update_fps_text(Display* display, int frames_per_second) {
+    char fps_text[64];
+    snprintf(fps_text, sizeof(fps_text), "FPS: %d", frames_per_second);
+    SDL_Color white = {255, 255, 255, 255};
+    SDL_Surface* text_surface = TTF_RenderText_Blended(display->text_renderer, fps_text, white);
+    if (text_surface) {
+        if (display->rendered_text[0]) {
+            SDL_DestroyTexture(display->rendered_text[0]);
+        }
+        display->rendered_text[0] = SDL_CreateTextureFromSurface(display->renderer, text_surface);
+        SDL_FreeSurface(text_surface);
+    }
+}
+
+void update_debug_text(Display* display, const char* debug_info) {
+    SDL_Color white = {255, 255, 255, 255};
+    SDL_Surface* debug_surface = TTF_RenderText_Blended(display->text_renderer, debug_info, white);
+    if (debug_surface) {
+        if (display->rendered_text[1]) {
+            SDL_DestroyTexture(display->rendered_text[1]);
+        }
+        display->rendered_text[1] = SDL_CreateTextureFromSurface(display->renderer, debug_surface);
+        SDL_FreeSurface(debug_surface);
+    }
+}
+
+void key_info_text(Display* display, const char* key_info) {
+    SDL_Color white = {255, 255, 255, 255};
+    SDL_Surface* key_surface = TTF_RenderText_Blended(display->text_renderer, key_info, white);
+    if (key_surface) {
+        if (display->rendered_text[2]) {
+            SDL_DestroyTexture(display->rendered_text[2]);
+        }
+        display->rendered_text[2] = SDL_CreateTextureFromSurface(display->renderer, key_surface);
+        SDL_FreeSurface(key_surface);
+    }
+}
+
+void update_render_info_text(Display* display, const char* render_info) {
+    SDL_Color white = {255, 255, 255, 255};
+    SDL_Surface* render_surface = TTF_RenderText_Blended(display->text_renderer, render_info, white);
+    if (render_surface) {
+        if (display->rendered_text[3]) {
+            SDL_DestroyTexture(display->rendered_text[3]);
+        }
+        display->rendered_text[3] = SDL_CreateTextureFromSurface(display->renderer, render_surface);
+        SDL_FreeSurface(render_surface);
+    }
+}
+
+void update_face_count_text(Display* display, int face_count) {
+    char face_text[64];
+    snprintf(face_text, sizeof(face_text), "Faces: %d", face_count);
+    SDL_Color white = {255, 255, 255, 255};
+    SDL_Surface* face_surface = TTF_RenderText_Blended(display->text_renderer, face_text, white);
+    if (face_surface) {
+        if (display->rendered_text[4]) {
+            SDL_DestroyTexture(display->rendered_text[4]);
+        }
+        display->rendered_text[4] = SDL_CreateTextureFromSurface(display->renderer, face_surface);
+        SDL_FreeSurface(face_surface);
+    }
+}
+
+void update_text(Display* display, int* current_time, int* last_time, int* frames_per_second, int face_count, const char* debug_info, const char* render_info) {
+    *current_time = SDL_GetTicks();
+    if (*current_time - *last_time >= 1000) {
+        
+        *last_time = *current_time;
+
+        update_fps_text(display, *frames_per_second);
+        key_info_text(display, "Press 1-4 to load different models");
+        update_debug_text(display, debug_info);
+        update_render_info_text(display, render_info);
+        update_face_count_text(display, face_count);
+    }
+    
+}

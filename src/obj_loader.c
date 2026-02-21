@@ -4,7 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-int load_obj(const char* filename, Mesh* mesh) {
+int load_obj(const char* filename, Mesh* mesh, uint32_t default_color) {
+
+
     FILE* obj = fopen(filename, "r");
     if (obj == NULL) {
         printf("Failed to open OBJ file: %s\n", filename);
@@ -127,6 +129,7 @@ int load_obj(const char* filename, Mesh* mesh) {
         vertices[k].position.x = (vertices[k].position.x - minx - width / 2.0f) / max_dimension;
         vertices[k].position.y = (vertices[k].position.y - miny - height / 2.0f) / max_dimension;
         vertices[k].position.z = (vertices[k].position.z - minz - depth / 2.0f) / max_dimension;
+        vertices[k].color = default_color; // Default color for all vertices (can be overridden by material info in future)
     }
 
     // Compute vertex normals by area-weighted sum of adjacent triangle faces
@@ -168,13 +171,16 @@ int load_obj(const char* filename, Mesh* mesh) {
     mesh->vertex_count = total_vertex;
     mesh->indices = vertex_indices;
     mesh->index_count = icount;
-
+    
     // Allocate other per-mesh buffers
     mesh->rendered_triangles = (Triangle*)malloc(sizeof(Triangle) * (icount / 3));
     mesh->shaded_colors = (uint32_t*)malloc(sizeof(uint32_t) * total_vertex);
     mesh->transformed_normals = (Vector3*)malloc(sizeof(Vector3) * total_vertex);
     mesh->camera_vertices = (Vector3*)malloc(sizeof(Vector3) * total_vertex);
     mesh->projected_vertices = (Vertex*)malloc(sizeof(Vertex) * total_vertex);
+
+    mesh -> rotation_angle = 0.0f;
+    mesh -> translation = 0.0f;
 
     printf("Loaded OBJ: %s (vertices=%d, indices=%d)\n", filename, total_vertex, icount);
     return 0;
