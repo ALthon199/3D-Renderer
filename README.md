@@ -2,6 +2,8 @@
 
 A small software rasterizer / renderer written in C using SDL2 and SDL2_ttf for windowing and text rendering.
 
+
+
 ## Features
 
 - Tile-aware software rasterization
