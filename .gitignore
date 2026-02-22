@@ -33,3 +33,10 @@ lib/
 include/SDL2/
 SDL2.dll
 include/SDL2/SDL2_ttf.2.24.0
+
+# Ignore all OBJ model files by default, but keep a few example models
+*.obj
+!assets/xyzrgb_dragon.obj
+!assets/air-jordan-1.obj
+!assets/bunny.obj
+!assets/rainier-ak-3d.obj

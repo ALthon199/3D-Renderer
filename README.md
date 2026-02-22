@@ -10,42 +10,57 @@ A small software rasterizer / renderer written in C using SDL2 and SDL2_ttf for 
 - Switch models with keys `1`, `2`, `3`, `4`
 - On-screen FPS and debug info via SDL_ttf
 
-## Prerequisites (Windows)
+## Setup & Build (Detailed Windows instructions)
 
-- Microsoft Visual Studio (cl.exe) with x64 toolchain
-- SDL2 development files (headers + x64 libs)
-- SDL2_ttf development files (headers + x64 libs)
+1. Install Visual Studio (or Build Tools)
 
-The repository contains a local `lib\x64` folder with `SDL2.lib`, `SDL2.dll`, `SDL2_ttf.lib`, and `SDL2_ttf.dll` used by the build script.
+- Install Visual Studio 2019/2022 or the "Build Tools for Visual Studio" and make sure the **Desktop development with C++** workload is installed. Ensure you can run a Developer Command Prompt and that `cl.exe` is available.
 
-## Build (recommended)
+2. Download SDL2 and SDL2_ttf (development packages)
 
-Open a "Developer Command Prompt for VS" configured for x64 or run the included `build.bat` which tries to call `vcvarsall.bat x64`.
+- SDL2: https://www.libsdl.org/download-2.0.php — download the "SDL2-devel-<version>-VC" zip.
+- SDL2_ttf: https://www.libsdl.org/projects/SDL_ttf/ — download the VC development zip.
 
-From the repository root:
+3. Place headers/libs into this repo layout (example)
+
+- Copy the SDL2 headers into `include\\SDL2\\` (so `include\\SDL2\\SDL.h` exists).
+- Copy SDL2_ttf headers into `include\\SDL2\\SDL2_ttf-<version>\\include` or into `include\\SDL2` if you prefer a flat layout.
+- Copy the x64 libraries and DLLs into `lib\\x64\\` (for example `lib\\x64\\SDL2.lib`, `lib\\x64\\SDL2.dll`, `lib\\x64\\SDL2_ttf.lib`, `lib\\x64\\SDL2_ttf.dll`).
+
+This repository already includes a `lib\\x64` folder; confirm the DLLs (_.dll) and import libs (_.lib) are present and match the architecture (x64).
+
+4. Build using the provided script
+
+- Open "x64 Native Tools Command Prompt for VS" (or run the Developer Command Prompt and call `vcvarsall.bat x64`).
+- From the repository root run:
 
 ```powershell
-.\build.bat
+.\\build.bat
 ```
 
-What `build.bat` does:
+What the script does:
 
-- Calls Visual Studio vcvars (x64) if available
-- Compiles `src\*.c` with include paths `include` and `include\SDL2`
-- Links `lib\x64\SDL2.lib`, `SDL2main.lib`, and `SDL2_ttf.lib`
-- Copies `lib\x64\SDL2.dll` and `lib\x64\SDL2_ttf.dll` into `bin\`
+- Initializes the x64 MSVC environment (attempts to call `vcvarsall.bat x64`).
+- Compiles `src\\*.c` with `/I include` and `/I include\\SDL2`.
+- Links against libraries in `lib\\x64` including `SDL2.lib`, `SDL2main.lib`, and `SDL2_ttf.lib`.
+- Copies `lib\\x64\\SDL2.dll` and `lib\\x64\\SDL2_ttf.dll` into `bin\\` for runtime.
 
-If you prefer to compile manually with `cl`, add the following include paths:
+5. Common problems and fixes
 
-```
-/I include /I include\SDL2 /I include\SDL2\SDL2_ttf-2.24.0\include
-```
+- Link errors (e.g. unresolved `TTF_Init`): make sure you're linking `SDL2_ttf.lib` and that the library's architecture matches your compiler (x64 vs x86).
+- Missing DLL at runtime: ensure `SDL2.dll` and `SDL2_ttf.dll` are present in `bin\\` or on `PATH`.
+- If `build.bat` fails to find Visual Studio scripts, open the Developer Command Prompt manually, which preconfigures environment variables.
 
-and link against libraries in `lib\x64`.
+Alternative install options
 
-## Run
+- vcpkg: If you use `vcpkg`, you can `vcpkg install sdl2 sdl2-ttf` and integrate with MSBuild. That will keep system dependencies out of the repo.
+- MSYS2: `pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-SDL2_ttf` if targeting MinGW.
 
-After a successful build run `bin\main.exe` (the build script attempts to run it automatically).
+6. Adjusting asset paths
+
+- The code uses relative asset paths like `..\\assets\\teapot.obj` — running the executable from `bin\\` may require changing paths or copying assets into `bin\\assets`. If you prefer, I can update `build.bat` to copy `assets` into `bin` after build.
+
+If you'd like, I can also add step-by-step commands to use `vcpkg` or update `build.bat` to automatically copy `assets` into `bin`.
 
 ## Controls
 
@@ -69,12 +84,3 @@ After a successful build run `bin\main.exe` (the build script attempts to run it
 - `lib/x64/` — third-party `.lib`/`.dll` files
 - `assets/` — models, fonts, and other data
 
-If you'd like, I can also add a small step to copy assets into `bin` automatically or adjust asset paths to be relative to the executable.
-Dependencies:
-This project requires SDL2 (x86).
-
-Download the SDL2 VC development transition from libsdl.org.
-
-Place the include\SDL2 and lib\(x86 or x64) folders in the project root.
-
-Run build.bat.
