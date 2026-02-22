@@ -227,8 +227,8 @@ void process_events(Display* display, bool* running, Mouse* mouse, Camera* camer
     }
     
     if (keyboard->keyboard_state[SDL_SCANCODE_1]) { // 1 key
-        load_obj("..\\assets\\dog.obj", mesh, 0xFFA500FF); // Brown color for dog
-        snprintf(debug_info, 64, "Rendering dog.obj");
+        load_obj("..\\assets\\rainier-ak-3d.obj", mesh, 0xFFA500FF); // Brown color for dog
+        snprintf(debug_info, 64, "Rendering rainier-ak-3d.obj");
     }
 
     if (keyboard->keyboard_state[SDL_SCANCODE_2]) { // 2 key
@@ -237,8 +237,8 @@ void process_events(Display* display, bool* running, Mouse* mouse, Camera* camer
     }
 
     if (keyboard->keyboard_state[SDL_SCANCODE_3]) { // 3 key
-        load_obj("..\\assets\\teapot.obj", mesh, 0xFF0000FF); // Blue color for teapot
-        snprintf(debug_info, 64, "Rendering teapot.obj");
+        load_obj("..\\assets\\Souta.obj", mesh, 0xFF0000FF); // Blue color for teapot
+        snprintf(debug_info, 64, "Rendering Souta.obj");
     }
 
     if (keyboard->keyboard_state[SDL_SCANCODE_4]) { // 4 key
